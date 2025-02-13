@@ -4,6 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 interface UserToken {
   name: string;
   exp: number;
+  _is: string;
 }
 
 // create a new class to instantiate for a user
