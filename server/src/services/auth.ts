@@ -1,39 +1,49 @@
-import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
 import dotenv from 'dotenv';
+
+// Load our secret key from .env file
 dotenv.config();
 
+// Define what our token contains
 interface JwtPayload {
-  _id: unknown;
-  username: string;
-  email: string,
+	_id: unknown;
+	username: string;
+	email: string;
 }
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+// Check if user is logged in before letting them do things
+export const authMiddleware = ({ req }: { req: any }) => {
+	// Get token from different possible places in the request
+	let token = req.body.token || req.query.token || req.headers.authorization;
 
-  if (authHeader) {
-    const token = authHeader.split(' ')[1];
+	// Clean up the token if it's in the header
+	if (req.headers.authorization) {
+		token = token.split(' ').pop().trim();
+	}
 
-    const secretKey = process.env.JWT_SECRET_KEY || '';
+	// If no token found, return the request as is
+	if (!token) {
+		return req;
+	}
 
-    jwt.verify(token, secretKey, (err, user) => {
-      if (err) {
-        return res.sendStatus(403); // Forbidden
-      }
+	try {
+		// Get our secret key for checking tokens
+		const secretKey = process.env.JWT_SECRET_KEY || '';
+		// Check if token is valid and get user info from it
+		const { data } = jwt.verify(token, secretKey) as { data: JwtPayload };
+		req.user = data;
+	} catch {
+		console.log('Invalid token');
+	}
 
-      req.user = user as JwtPayload;
-      return next();
-    });
-  } else {
-    res.sendStatus(401); // Unauthorized
-  }
+	return req;
 };
 
+// Create a new token when user logs in or signs up
 export const signToken = (username: string, email: string, _id: unknown) => {
-  const payload = { username, email, _id };
-  const secretKey = process.env.JWT_SECRET_KEY || '';
+	const payload = { username, email, _id };
+	const secretKey = process.env.JWT_SECRET_KEY || '';
 
-  return jwt.sign(payload, secretKey, { expiresIn: '1h' });
+	// Make token that expires in 2 hours
+	return jwt.sign({ data: payload }, secretKey, { expiresIn: '2h' });
 };
